@@ -303,7 +303,7 @@ def evaluate_counterfactuals(
     d_c: int,
     device: torch.device,
     num_display_samples: int = 10
-):
+) -> Dict:
     """
     Evaluate and display counterfactual predictions.
 
@@ -319,6 +319,9 @@ def evaluate_counterfactuals(
         d_c: Confounding dimension
         device: Device
         num_display_samples: Number of samples to display
+
+    Returns:
+        Dictionary with evaluation results
     """
     print("\n" + "="*60)
     print("Counterfactual Evaluation")
@@ -392,3 +395,23 @@ def evaluate_counterfactuals(
 
         print(f"ATE({target_name}, {baseline_name}) = {ate:.4f}")
         print(f"(Positive means {target_name} leads to higher outcome on average)")
+    else:
+        ate = None
+        baseline_idx = None
+        target_idx = None
+        baseline_name = None
+        target_name = None
+
+    # Return detailed results
+    return {
+        'ite_mean': mean_ite,
+        'ite_std': std_ite,
+        'ite_values': results['ite'],
+        'ate': ate,
+        'ate_baseline': baseline_name,
+        'ate_target': target_name,
+        'ate_baseline_idx': baseline_idx,
+        'ate_target_idx': target_idx,
+        'n_test_samples': len(results['ite']),
+        'treatment_counts': dict(zip(unique, counts))
+    }
