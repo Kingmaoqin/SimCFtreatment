@@ -82,14 +82,21 @@ def load_and_clean_csv(csv_path: str) -> pd.DataFrame:
         if col in df.columns:
             dtype_map[col] = 'float32'
 
-    # Apply dtype conversions
+    # Apply dtype conversions with better error handling
     for col, dtype in dtype_map.items():
         if col in df.columns:
             try:
                 if dtype == 'str':
                     df[col] = df[col].astype(str)
-                else:
-                    df[col] = df[col].astype(dtype)
+                elif dtype in ['int64', 'float32', 'float64']:
+                    # Convert to numeric, coercing errors to NaN
+                    df[col] = pd.to_numeric(df[col], errors='coerce')
+                    if dtype == 'int64':
+                        # For integer columns, drop NaN rows
+                        df = df.dropna(subset=[col])
+                        df[col] = df[col].astype(dtype)
+                    else:
+                        df[col] = df[col].astype(dtype)
             except Exception as e:
                 print(f"Warning: Could not convert {col} to {dtype}: {e}")
 
@@ -161,8 +168,16 @@ def fit_preprocessing(df: pd.DataFrame) -> PreprocessingConfig:
     # Fit numeric statistics
     for col in config.numeric_features:
         if col in df.columns:
-            config.numeric_mean[col] = float(df[col].mean())
-            config.numeric_std[col] = float(df[col].std() + 1e-8)  # Add epsilon to avoid division by zero
+            # Ensure column is numeric
+            df[col] = pd.to_numeric(df[col], errors='coerce')
+            # Drop NaN values for this calculation
+            valid_values = df[col].dropna()
+            if len(valid_values) > 0:
+                config.numeric_mean[col] = float(valid_values.mean())
+                config.numeric_std[col] = float(valid_values.std() + 1e-8)  # Add epsilon to avoid division by zero
+            else:
+                config.numeric_mean[col] = 0.0
+                config.numeric_std[col] = 1.0
 
     # Fit categorical vocabularies
     for col in config.cat_features:
