@@ -68,7 +68,13 @@ def diffusion_forward_sample(
     batch_size, d_c = c_0.shape
 
     # Get alpha_bar for each timestep
-    alpha_bar_t = alpha_bars[t].view(-1, 1).to(device)  # [batch_size, 1]
+    # If alpha_bars and t are on different devices, use CPU indexing
+    if alpha_bars.device != t.device:
+        t_cpu = t.cpu()
+        alpha_bar_t = alpha_bars[t_cpu].view(-1, 1).to(device)
+    else:
+        # Both on same device, can index directly
+        alpha_bar_t = alpha_bars[t].view(-1, 1)
 
     # Sample noise
     eps = torch.randn_like(c_0)
@@ -104,7 +110,8 @@ def train_diffusion_epoch(
     total_loss = 0.0
     num_batches = 0
 
-    alpha_bars = diffusion_schedule['alpha_bars']
+    # Ensure alpha_bars is on the correct device for better performance
+    alpha_bars = diffusion_schedule['alpha_bars'].to(device)
 
     for batch in train_loader:
         numeric = batch['numeric'].to(device)
@@ -162,7 +169,8 @@ def validate_diffusion(
     total_loss = 0.0
     num_batches = 0
 
-    alpha_bars = diffusion_schedule['alpha_bars']
+    # Ensure alpha_bars is on the correct device for better performance
+    alpha_bars = diffusion_schedule['alpha_bars'].to(device)
 
     with torch.no_grad():
         for batch in val_loader:
